@@ -1,0 +1,124 @@
+---
+title: "attempt 2"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(here)
+library(lubridate)
+library(knitr)
+library(stringr)
+library(taxize)
+library(profvis)
+library(jsonlite)
+library(tidyr)
+library(stringr)
+```
+
+```{r}
+time_diff2 <- read.csv("C:/Users/Nepal/Documents/Biome Health Project/Analysis/30min_hteshold.csv" ,stringsAsFactors = FALSE)
+```
+
+```{r}
+#fpath<- data.frame(str_split_fixed(time_diff$new_file_structure, "/", 10))
+#colnames(fpath) <- c("A","B","C","D","E","F","G","H","I","Image_nam")
+```
+
+```{r}
+#Natonal Park JSON folder
+jsfnp <- list.files("B:/biome_health_project_files/country_files/nepal/tagging_photos/30min_tagged/30min_threshold_NP_tagged", full.names = TRUE, pattern = "*json")
+
+#Buffer zone JSON folder
+jsfbz <- list.files("B:/biome_health_project_files/country_files/nepal/tagging_photos/30min_tagged/30min_threshold_BZ_tagged", full.names = TRUE, pattern = "*json")
+
+#OBZ JSON folder
+jsfobz <- list.files("B:/biome_health_project_files/country_files/nepal/tagging_photos/30min_tagged/30min_threshold_OBZ_tagged", full.names = TRUE, pattern = "*json")
+
+#missed JSON folder
+jsfmis<-list.files("B:/biome_health_project_files/country_files/nepal/tagging_photos/30min_tagged/30min_threshold_missing_tagged", full.names = TRUE, pattern = "*json")
+
+#jsf<-list.files("C:/Users/Nepal/Desktop/30min_threshold_OBZ_tagged", full.names = TRUE, pattern = "*json")
+
+###JSON extraction function - this can be resued for each folder###
+json_extract<-function(json_file){
+  
+  jsin<-jsonlite::fromJSON(json_file) 
+  ImageID<-jsin$asset$name
+ # TagID<-gsub("-asset.json", "",basename(json_file))
+  
+  json_loop_out<-NULL
+  for (i in 1:nrow(jsin$regions)){  #length(jsin$regions)){
+    
+    CommonName<-as.character(jsin$regions$tags[i]) # (jsin$regions[[i]]$tags) sometimes works if this doesn't
+    #box_id<-jsin$regions$id[i]
+    #bl_x<-min(jsin$regions$points[[i]]$x)
+    #bl_y<-min(jsin$regions$points[[i]]$y)
+    #tr_x<-max(jsin$regions$points[[i]]$x)
+    #tr_y<-max(jsin$regions$points[[i]]$y)
+    
+    jlo_out<-data.frame(CommonName)
+    json_loop_out<-rbind(json_loop_out, jlo_out)
+  }
+  
+  #TagID<-paste(TagID, json_loop_out$box_id, sep = "_")
+  
+  json_out<-data.frame( ImageID = ImageID, json_loop_out)
+  print(json_file)
+  return(json_out)
+}
+
+#json_df<-lapply(jsf,json_extract)
+#json_df_out<-do.call("rbind", json_df)
+
+#Buffer zone
+json_df_bz <- lapply(jsfbz,json_extract)
+json_df_out_bz <- do.call("rbind", json_df_bz)
+table(json_df_out_np$CommonName)
+
+#NP
+json_df_np <- lapply(jsfnp,json_extract)
+json_df_out_np <- do.call("rbind", json_df_np)
+
+#OBZ
+json_df_obz <- lapply(jsfobz,json_extract)
+json_df_out_obz <- do.call("rbind", json_df_obz)
+
+#missing tags
+json_df_mis <- lapply(jsfmis,json_extract)
+json_df_out_mis <- do.call("rbind", json_df_mis)
+
+#merge the 4 dataframes together
+json_mer <- bind_rows(json_df_out_bz,json_df_out_np,json_df_out_obz, json_df_out_mis)
+names(json_mer) <- c("Image_nam", "CommonName")
+table(json_mer$CommonName)
+uq <- data.frame(unique(json_mer$CommonName))
+uqnp <- data.frame(unique(json_df_out_np$CommonName))
+uqbz <- data.frame(unique(json_df_out_bz$CommonName))
+uqobz <- data.frame(unique(json_df_out_obz$CommonName))
+
+```
+
+```{r}
+time_diff2$Image_nam<-basename(time_diff2$new_file_structure)
+head(time_diff2)
+head(json_mer)
+json_mer <- rename(json_mer, Image_nam = ImageID) 
+time_diff_species <- left_join(time_diff2, json_mer, by = "Image_nam" )
+table(time_diff_species$CommonName)
+rlang::last_error()
+write.csv(time_diff_species, "Latest_species_meta.csv")
+```
+
+Adding Coordinates to the main dataframe
+```{r}
+location <- read.csv("C:/Users/Nepal/Documents/Biome Health Project/Analysis/Audio locations_updated.csv" ,stringsAsFactors = FALSE)
+
+loc2 <- rename(location, site_cam.x = Station.Camera.Name) 
+head(loc2)
+meta <- left_join(time_diff_species, loc2, by = "site_cam.x")
+#Remove empty columns
+meta <- select(meta, -c(X.1.y, X.2, X.3, X.4, X.5))
+write.csv(meta, "meta.csv")
+
+```

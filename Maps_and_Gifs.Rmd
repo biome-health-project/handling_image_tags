@@ -1,0 +1,145 @@
+---
+title: "GIF"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(gganimate)
+library(transformr)
+library(tweenr)
+library(gifski)
+library(png)
+library(plotly)
+```
+
+```{r}
+meta <- read.csv("C:/Users/Nepal/Documents/Biome Health Project/Analysis/meta.csv" ,stringsAsFactors = FALSE)
+```
+
+
+ALL data (including empties)
+```{r}
+meta$date_fixed<-as.Date(meta$date_fixed, "%Y-%m-%d", tz = "UTC")
+
+
+exif_daily<-meta %>% 
+  group_by(Site.ID, X.Actual,Y.Actual, site_cam.x,date_fixed) %>% 
+  tally()
+
+colnames(exif_daily)[5]<-"DATE_NF"
+exif_daily$X.Actual<- as.integer(exif_daily$X.Actual)
+#head(exif_daily)
+
+d<-ggplot(exif_daily, aes(x = X.Actual, y = Y.Actual))+
+  geom_point(data = exif_daily, aes(size = n, colour = Site.ID))+
+  coord_equal()+
+  transition_time(exif_daily$DATE_NF)+
+  ease_aes('linear')+
+  labs(title = 'Date: {frame_time}')+
+  #coord_equal()+
+  theme_bw()
+  #enter_fade() +
+  #exit_fade()
+
+
+animate(d,fps = 3.5, nframes = 55)
+```
+
+All data (no empties)
+```{r}
+meta_ne<- meta[!is.na(meta$CommonName), ]
+
+#meta_ne %>%
+  #count(CommonName)
+
+exif_daily_ne<-meta_ne %>% 
+  group_by(Site.ID, X.Actual,Y.Actual, site_cam.x,date_fixed) %>% 
+  tally()
+
+exif_daily_ne$X.Actual<- as.integer(exif_daily_ne$X.Actual)
+
+colnames(exif_daily_ne)[5]<-"DATE_NF"
+
+dne<-ggplot(exif_daily_ne, aes(x = X.Actual, y = Y.Actual))+
+  geom_point(data = exif_daily_ne, aes(size = n, colour = Site.ID))+
+  coord_equal()+
+  transition_time(exif_daily_ne$DATE_NF)+
+  ease_aes('linear')+
+  labs(title = 'Date: {frame_time}')+
+  #coord_equal()+
+  theme_bw()
+
+animate(dne,fps = 3.5, nframes = 55)
+```
+
+```{r}
+exif_daily_ne_pic<-meta_ne %>% 
+  group_by(Site.ID, X.Actual,Y.Actual, site_cam.x) %>% 
+  tally()
+
+exif_daily_ne_pic$X.Actual<- as.integer(exif_daily_ne_pic$X.Actual)
+dpne<-ggplot(exif_daily_ne_pic, aes(x = X.Actual, y = Y.Actual))+
+  geom_point(data = exif_daily_ne_pic, aes(size = n, colour = Site.ID))
+dpne
+ggplotly(dpne)
+```
+
+No Anthropogenic (no empties)
+```{r}
+#Anthropogenic tags - "Buffalo", "Cow", "Dog", "Domestic Cat", "Domestic Chicken", "Goat", "Human", "Pig", "Sheep", "Vehicle", "Domestic Elephant"
+ 
+#head(meta)
+
+###Remove all anthropogenic tags 
+meta_no_anthro <- meta %>%
+  #select(Site.ID, X.Actual,Y.Actual, site_cam.x,date_fixed,CommonName)
+  filter(!CommonName %in% c("Buffalo", "Cow", "Dog", "Domestic Cat", "Domestic Chicken", "Goat", "Human", "Pig", "Sheep", "Vehicle", "Domestic Elephant"))
+
+##Remove Na's
+meta_no_anthro<- meta_no_anthro[!is.na(meta_no_anthro$CommonName), ]
+
+meta_no_anthro %>%
+  count(CommonName)
+
+exif_daily_no_anthro<-meta_no_anthro %>% 
+  group_by(Site.ID, X.Actual,Y.Actual, site_cam.x,date_fixed) %>% 
+  tally()
+head(exif_daily_no_anthro)
+exif_daily_no_anthro$X.Actual<- as.integer(exif_daily_no_anthro$X.Actual)
+
+colnames(exif_daily_no_anthro)[5]<-"DATE_NF"
+#head(exif_daily_no_anthro)
+
+d2<-ggplot(exif_daily_no_anthro, aes(x = X.Actual, y = Y.Actual))+
+  geom_point(data = exif_daily_no_anthro, aes(size = n, colour = Site.ID))+
+  coord_equal()+
+  transition_time(exif_daily_no_anthro$DATE_NF)+
+  ease_aes('linear')+
+  labs(title = 'Date: {frame_time}')+
+  #coord_equal()+
+  theme_bw()
+
+animate(d2,fps = 3.5, nframes = 55)
+
+```
+
+```{r}
+exif_daily_no_anthro_pic<-meta_no_anthro %>% 
+  group_by(Site.ID, X.Actual,Y.Actual, site_cam.x) %>% 
+  tally()
+#head(exif_daily_no_anthro_pic)
+exif_daily_no_anthro_pic$X.Actual<- as.integer(exif_daily_no_anthro_pic$X.Actual)
+dpic<-ggplot(exif_daily_no_anthro_pic, aes(x = X.Actual, y = Y.Actual))+
+  geom_point(data = exif_daily_no_anthro_pic, aes(size = n, colour = Site.ID))
+dpic
+ggplotly(dpic)
+```
+
+
